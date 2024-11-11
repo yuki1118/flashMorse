@@ -15,6 +15,8 @@ struct ContentView: View {
     @State private var showingSettings = false  // 設定画面表示フラグ
     @State private var currentMorseCharacter = ""  // 現在送信中のモールス文字
     @State private var showError = false  // エラーメッセージ表示フラグ
+    @State private var currentRepeat = 1  // 現在の繰り返し回数
+    @State private var shouldStopSending = false  // 送信停止フラグ
 
     var body: some View {
         ZStack {
@@ -42,6 +44,15 @@ struct ContentView: View {
                     Text("現在送信中: \(currentMorseCharacter)")
                         .foregroundColor(.red)
                         .padding()
+                    
+                    // 繰り返し回数表示
+                    HStack {
+                        Image(systemName: "repeat")
+                            .foregroundColor(.red)
+                        Text("\(currentRepeat)/\(repeatCount)")
+                            .foregroundColor(.red)
+                            .bold()
+                    }
                 }
                 
                 Spacer()
@@ -50,8 +61,12 @@ struct ContentView: View {
                 Button(action: {
                     if morseText.isEmpty {
                         showErrorMessage()  // エラーメッセージを表示
-                    } else if !isSendingMorse {
+                    } else if isSendingMorse {
+                        shouldStopSending = true  // 中断要求
+                    } else {
+                        shouldStopSending = false  // 中断フラグをリセット
                         isSendingMorse = true
+                        currentRepeat = 1  // 繰り返しカウンタをリセット
                         sendMorseSignal(morseText, repeatCount: repeatCount) {
                             isSendingMorse = false
                             currentMorseCharacter = ""  // 送信完了後にクリア
@@ -64,7 +79,6 @@ struct ContentView: View {
                         .foregroundColor(isSendingMorse ? .yellow : .gray)
                         .padding()
                 }
-                .disabled(isSendingMorse)
 
                 Spacer()
             }
@@ -121,11 +135,17 @@ struct ContentView: View {
         let morseString = message.uppercased().compactMap { morseCodeDict[$0] }
         
         Task {
-            for _ in 0..<repeatCount {
+            for repeatIndex in 1...repeatCount {
+                if shouldStopSending { break }  // 中断フラグチェック
+                currentRepeat = repeatIndex  // 現在の繰り返し回数を更新
+                
                 for (index, character) in message.enumerated() {
+                    if shouldStopSending { break }
                     currentMorseCharacter = String(character)
                     
                     for symbol in morseString[index] {
+                        if shouldStopSending { break }
+                        
                         if symbol == "." {
                             toggleTorch(on: true)
                             try await Task.sleep(nanoseconds: 200_000_000)
