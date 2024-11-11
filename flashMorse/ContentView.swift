@@ -106,6 +106,7 @@ struct ContentView: View {
                             .foregroundColor(.gray)
                     }
                 }
+                .disabled(isSendingMorse)  // 送信中は無効化
             }
         }
         .sheet(isPresented: $showingSettings) {
